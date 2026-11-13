@@ -15,7 +15,8 @@ window.CARTA = {
     "horario": "",
     "delivery": "El costo del delivery se confirma por WhatsApp según tu zona.",
     "tapper": 1,
-    "videoPortada": ""
+    "videoPortada": "",
+    "api": "https://script.google.com/macros/s/AKfycbyzwKUa7ptJcCU9mlOeSXFHErUA3MUPzKtk3y1eXQtTghPlY8UHvuU8OLMsBEcoYKaK/exec"
   },
   "salsas": {
     "dulces": ["BBQ ahumado", "BBQ picante", "Maracuyá picante", "Mojito", "Maracuyá", "Salsa Jack Daniels"],
