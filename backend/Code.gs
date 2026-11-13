@@ -40,7 +40,13 @@ function tabla_(nombre) {
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
-function txt_(v, max) { return String(v == null ? '' : v).replace(/[<>]/g, '').trim().slice(0, max); }
+// Limpia texto que viene de la web. Si empieza con = + - @ la hoja lo tomaría como FÓRMULA
+// (alguien podría inyectar una fórmula que robe datos al abrir la hoja). El apóstrofo lo deja como texto.
+function txt_(v, max) {
+  let s = String(v == null ? '' : v).replace(/[<>\u0000-\u001F]/g, ' ').trim().slice(0, max);
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  return s;
+}
 function bool_(v) { return v === true || String(v).toUpperCase() === 'TRUE' || String(v).toUpperCase() === 'VERDADERO'; }
 function num_(v) { const n = Number(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; }
 function slug_(s) { return 'c-' + String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-'); }
@@ -130,7 +136,9 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    const d = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    const cuerpo = (e && e.postData && e.postData.contents) || '{}';
+    if (cuerpo.length > 10000) return json_({ ok: false, error: 'Envío demasiado grande' });
+    const d = JSON.parse(cuerpo);
     if (d.web) return json_({ ok: true });                    // campo trampa: bots
     const tel = String(d.telefono || '').replace(/\D/g, '').replace(/^51/, '');
     if (!/^9\d{8}$/.test(tel)) return json_({ ok: false, error: 'Teléfono no válido' });
@@ -143,12 +151,14 @@ function doPost(e) {
   }
 }
 
-// máximo 5 envíos por teléfono cada 10 minutos
+// Límites contra abuso: máximo 5 envíos por teléfono y 60 en total cada 10 minutos
 function limite_(tel) {
-  const cache = CacheService.getScriptCache(), k = 'rl_' + tel;
-  const n = Number(cache.get(k) || 0);
-  if (n >= 5) return false;
-  cache.put(k, String(n + 1), 600);
+  const cache = CacheService.getScriptCache();
+  const kTel = 'rl_' + tel, kTodos = 'rl_todos';
+  const nTel = Number(cache.get(kTel) || 0), nTodos = Number(cache.get(kTodos) || 0);
+  if (nTel >= 5 || nTodos >= 60) return false;
+  cache.put(kTel, String(nTel + 1), 600);
+  cache.put(kTodos, String(nTodos + 1), 600);
   return true;
 }
 
